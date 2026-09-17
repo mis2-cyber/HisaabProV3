@@ -32,14 +32,18 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overscroll-behavior: none; }
 body {
   font-family: 'Plus Jakarta Sans', sans-serif;
   background: var(--bg);
   color: var(--text-main);
   user-select: none;
-  overflow-x: hidden;
-  padding-top: var(--safe-top);
-  padding-bottom: calc(80px + var(--safe-bottom));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  height: var(--app-height, 100vh);
 }
 
 .rupee-icon {
@@ -91,14 +95,13 @@ body {
 @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-20px); } }
 
 .app-header {
-  position: sticky;
-  top: 0;
+  flex: 0 0 auto;
   z-index: 40;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
-  padding: 12px 20px;
+  padding: calc(12px + var(--safe-top)) 20px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -110,7 +113,15 @@ body {
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.main-container { padding: 16px; max-width: 600px; margin: 0 auto; }
+.main-container {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
 
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
 .stat-card {
@@ -250,10 +261,10 @@ body {
 .bill-summary-row.total { border-top: 1px dashed var(--border); padding-top: 6px; margin-top: 6px; font-weight: 800; font-size: 14px; color: var(--text-main); }
 
 .bottom-nav {
-  position: fixed; bottom: 0; left: 0; right: 0;
+  flex: 0 0 auto;
   height: calc(65px + var(--safe-bottom)); padding-bottom: var(--safe-bottom);
   background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border); display: flex; justify-around: space-around;
+  border-top: 1px solid var(--border); display: flex; justify-content: space-around;
   align-items: center; z-index: 50;
 }
 .nav-item {
@@ -477,6 +488,24 @@ body {
 </div>
 
 <script>
+/* ===== Lock app height to the REAL visible viewport (not the static 100vh,
+   which on mobile Safari includes the area the address/tab-bar chrome can
+   cover). Tab switching doesn't fire a scroll/resize event on its own, so
+   dvh alone sometimes lags — measuring window.innerHeight directly and
+   pinning to it keeps the bottom nav in exactly the same spot on every
+   tab, whether the browser chrome happens to be shown or hidden. ===== */
+function setAppHeight() {
+  const vv = window.visualViewport;
+  const h = vv ? vv.height : window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', h + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 100));
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', setAppHeight);
+}
+
 const DB_KEY = 'hisaab_pro_v9';
 
 /* ============================================================
@@ -856,6 +885,7 @@ function getPreviousBalanceBeforeTx(shopId, txId) {
 }
 
 function switchTab(tabId) {
+  setAppHeight();
   document.querySelectorAll('.screen').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   
