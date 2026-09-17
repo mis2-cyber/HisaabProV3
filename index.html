@@ -302,32 +302,17 @@ body {
 
 .hidden { display: none !important; }
 
-/* ===== One consistent button effect — soft press + tiny bounce ===== */
+/* ===== Unified smooth "jump" effect for ALL clickable buttons ===== */
 .btn, .icon-btn, .nav-item, .add-fab-btn {
   -webkit-tap-highlight-color: transparent;
-  transition: filter 0.18s ease;
-  transform-origin: center center;
-  will-change: transform;
-}
-
-@keyframes unifiedButtonPop {
-  0%   { transform: scale(1); filter: brightness(1); }
-  22%  { transform: scale(0.96); filter: brightness(0.96); }
-  52%  { transform: scale(1.035); filter: brightness(1.05); }
-  76%  { transform: scale(0.99); filter: brightness(1.01); }
-  100% { transform: scale(1); filter: brightness(1); }
-}
-
-.btn.button-pop,
-.icon-btn.button-pop,
-.nav-item.button-pop,
-.add-fab-btn.button-pop {
-  animation: unifiedButtonPop 0.42s cubic-bezier(0.34, 1.25, 0.64, 1);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease, filter 0.2s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .btn:hover, .icon-btn:hover, .nav-item:hover {
-    filter: brightness(1.04);
+    transform: translateY(-4px);
+    filter: brightness(1.05);
   }
 }
 
@@ -336,22 +321,38 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
 }
 
+@keyframes smoothJump {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-14px) scale(1.08); }
+  55%  { transform: translateY(2px) scale(0.96); }
+  75%  { transform: translateY(-5px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.jump-effect {
+  animation: smoothJump 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The bottom nav bar has a fixed, tight height (65px). Lifting a nav
+   button up by 14px there uncovers empty bar background beneath it and
+   looks like the row is shifting / leaving a gap. So nav buttons get a
+   contained scale-only "pop" instead of the vertical jump used elsewhere. */
+.nav-item.jump-effect {
+  animation: navPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes navPop {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.18); }
+  55%  { transform: scale(0.94); }
+  75%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+
 @media print {
   body * { visibility: hidden; }
   #billPrintArea, #billPrintArea * { visibility: visible; }
   #billPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
 }
-
-
-/* ===== Purchase Analytics ===== */
-.purchase-analytics{background:#fff;border:1px solid var(--border);border-radius:20px;padding:18px;margin:2px 0 18px;box-shadow:0 5px 22px rgba(15,23,42,.045)}
-.pa-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px}.pa-kicker{font-size:9px;font-weight:800;letter-spacing:1px;color:#94a3b8}.pa-head h3{font-size:18px;font-weight:800;margin-top:2px}.pa-head p{font-size:10px;color:var(--text-muted);margin-top:3px}.pa-head-icon{width:42px;height:42px;border-radius:13px;background:#eff6ff;color:#2563eb;display:grid;place-items:center}.pa-head-icon svg{width:21px;height:21px}
-.pa-summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.pa-stat{padding:13px;border:1px solid #edf0f4;border-radius:15px;background:#fafbfd}.pa-stat span{display:block;font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.3px}.pa-stat strong{display:block;font-size:17px;line-height:1.25;margin-top:5px;color:#0f172a}.pa-stat small{display:block;font-size:9px;color:#94a3b8;margin-top:4px}
-.pa-two-col{display:grid;grid-template-columns:1.1fr .9fr;gap:10px;margin-top:10px}.pa-box{border:1px solid #edf0f4;border-radius:16px;padding:13px;background:#fff}.pa-box-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.pa-box-head b{font-size:12px;font-weight:800;color:#1e293b}.pa-box-head span{font-size:9px;color:#94a3b8;font-weight:700}
-.pa-day-row{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:8px;margin:9px 0}.pa-day-label{font-size:9px;color:#64748b;font-weight:700}.pa-bar-bg{height:7px;background:#eef2f7;border-radius:20px;overflow:hidden}.pa-bar-fill{height:100%;background:#2563eb;border-radius:20px;min-width:0;transition:width .45s ease}.pa-day-amount{font-size:9px;font-weight:800;color:#334155;text-align:right;min-width:60px}.pa-empty{font-size:10px;color:#94a3b8;text-align:center;padding:14px 4px}
-.pa-rank{display:grid;grid-template-columns:23px 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9}.pa-rank:last-child{border-bottom:0}.pa-num{width:23px;height:23px;border-radius:7px;background:#f1f5f9;display:grid;place-items:center;font-size:9px;font-weight:800;color:#64748b}.pa-name{font-size:10px;font-weight:800;color:#334155;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pa-meta{font-size:8px;color:#94a3b8;margin-top:2px}.pa-cost{font-size:10px;font-weight:800;color:#0f172a;text-align:right}.pa-item-box{margin-top:10px}
-.pa-insights{display:grid;grid-template-columns:1fr;gap:7px;margin-top:10px}.pa-insights>div{padding:10px 12px;border-radius:13px;background:#f8fafc;border:1px solid #edf0f4}.pa-insights span{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;font-weight:800}.pa-insights b{display:block;font-size:10px;color:#334155;margin-top:3px}
-@media(max-width:700px){.pa-two-col{grid-template-columns:1fr}.purchase-analytics{padding:15px;border-radius:18px}.pa-stat strong{font-size:16px}}
 </style>
 </head>
 <body>
@@ -400,50 +401,6 @@ body {
       <div class="panel-head"><h3>Recent Activity</h3></div>
       <div id="dashActivity"></div>
     </div>
-
-
-    <!-- PURCHASE ANALYTICS -->
-    <section class="purchase-analytics" id="purchaseAnalytics">
-      <div class="pa-head">
-        <div>
-          <div class="pa-kicker">SPENDING OVERVIEW</div>
-          <h3>Purchase Analytics</h3>
-          <p id="paPeriodLabel">Current Month</p>
-        </div>
-        <div class="pa-head-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-5 3 3 5-7"/></svg>
-        </div>
-      </div>
-
-      <div class="pa-summary-grid">
-        <div class="pa-stat"><span>Today Purchase</span><strong id="paToday">₹0</strong><small id="paTodayCount">0 entries</small></div>
-        <div class="pa-stat"><span>Month Purchase</span><strong id="paMonthTotal">₹0</strong><small id="paMonthDays">0 purchase days</small></div>
-        <div class="pa-stat"><span>Daily Average</span><strong id="paDailyAvg">₹0</strong><small>Per active day</small></div>
-        <div class="pa-stat"><span>Avg / Entry</span><strong id="paAvgEntry">₹0</strong><small id="paMonthEntries">0 entries</small></div>
-      </div>
-
-      <div class="pa-two-col">
-        <div class="pa-box">
-          <div class="pa-box-head"><b>Daily Purchase</b><span>Last 7 Days</span></div>
-          <div id="paDailyRows"></div>
-        </div>
-        <div class="pa-box">
-          <div class="pa-box-head"><b>Shop-wise Cost</b><span>Month</span></div>
-          <div id="paShopRows"></div>
-        </div>
-      </div>
-
-      <div class="pa-box pa-item-box">
-        <div class="pa-box-head"><b>Top Items by Cost</b><span>Month</span></div>
-        <div id="paItemRows"></div>
-      </div>
-
-      <div class="pa-insights">
-        <div><span>Highest Purchase Day</span><b id="paHighestDay">—</b></div>
-        <div><span>Highest Cost Shop</span><b id="paHighestShop">—</b></div>
-        <div><span>Top Cost Item</span><b id="paHighestItem">—</b></div>
-      </div>
-    </section>
   </section>
 
   <section id="add" class="screen hidden">
@@ -916,70 +873,15 @@ function getShopBalance(shopId) {
   return Number(shop.opening || 0) + netTx;
 }
 
-function getTxChronologyKey(t) {
-  const date = String(t?.date || '').trim();
-  const parts = date.split('-');
-  const ymd = parts.length === 3
-    ? parts[0].padStart(4, '0') + parts[1].padStart(2, '0') + parts[2].padStart(2, '0')
-    : '00000000';
-
-  let time = String(t?.time || '').trim().toUpperCase();
-  let minutes = 0;
-
-  const m12 = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/);
-  const m24 = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-
-  if (m12) {
-    let h = Number(m12[1]);
-    const min = Number(m12[2]);
-    if (m12[3] === 'AM') h = h % 12;
-    else h = (h % 12) + 12;
-    minutes = h * 60 + min;
-  } else if (m24) {
-    minutes = Number(m24[1]) * 60 + Number(m24[2]);
-  }
-
-  const created = Number(t?.createdAt) || new Date(t?.createdAt || 0).getTime() || 0;
-  return { ymd, minutes, created };
-}
-
-function compareTxChronology(a, b) {
-  const ka = getTxChronologyKey(a);
-  const kb = getTxChronologyKey(b);
-
-  if (ka.ymd !== kb.ymd) return ka.ymd.localeCompare(kb.ymd);
-  if (ka.minutes !== kb.minutes) return ka.minutes - kb.minutes;
-  return ka.created - kb.created;
-}
-
 function getPreviousBalanceBeforeTx(shopId, txId) {
   const shop = store.shops.find(s => s.id === shopId);
   if (!shop) return 0;
 
-  const currentTx = store.tx.find(t => t.id === txId);
-  if (!currentTx) return Number(shop.opening || 0);
-
   const previousTxList = store.tx
-    .filter(t => t.shopId === shopId && t.id !== txId && compareTxChronology(t, currentTx) < 0);
+    .filter(t => t.shopId === shopId && t.createdAt < (store.tx.find(x => x.id === txId)?.createdAt || Infinity));
 
-  const netTx = previousTxList.reduce(
-    (acc, t) => acc + (t.type === 'purchase' ? Number(t.bill || 0) : -Number(t.paid || 0)),
-    0
-  );
-
+  const netTx = previousTxList.reduce((acc, t) => acc + (t.type === 'purchase' ? t.bill : -t.paid), 0);
   return Number(shop.opening || 0) + netTx;
-}
-
-function getNextDocumentId(prefix) {
-  const re = new RegExp('^' + prefix + '-(\\d{4,5})$');
-  let max = 0;
-
-  (store.tx || []).forEach(t => {
-    const m = String(t.id || '').match(re);
-    if (m) max = Math.max(max, Number(m[1]));
-  });
-
-  return prefix + '-' + String(max + 1).padStart(4, '0');
 }
 
 function switchTab(tabId) {
@@ -1072,7 +974,7 @@ function savePurchase() {
   }
 
   store.tx.push({
-    id: getNextDocumentId('INV'), 
+    id: 'INV-' + Math.floor(100000 + Math.random() * 900000), 
     type: 'purchase', date, time: timeStr, shopId,
     item: item.name, unit: item.unit, qty, rate, bill: qty * rate, paid: 0, remark, createdAt: Date.now()
   });
@@ -1162,7 +1064,7 @@ function savePayment() {
   }
 
   store.tx.push({
-    id: getNextDocumentId('PAY'),
+    id: 'PAY-' + Math.floor(100000 + Math.random() * 900000),
     type: 'payment', date, time: timeStr, shopId,
     item: `Payment Received (${mode})`, qty: 1, rate: amount, bill: 0, paid: amount, remark: mode, createdAt: Date.now()
   });
@@ -1404,51 +1306,6 @@ function getEmptyStateUI(title, subtitle, btnText, btnAction) {
   `;
 }
 
-
-
-/* ===== Purchase Analytics Engine ===== */
-function paMoney(n){return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0});}
-function paDateLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
-function paEsc(v){return escapeHtml(v==null?'':String(v));}
-function renderPurchaseAnalytics(){
-  const purchases=(store.tx||[]).filter(t=>t.type==='purchase'&&Number(t.bill||0)>0);
-  const now=new Date(), today=paDateLocal(now), month=today.slice(0,7);
-  const monthTx=purchases.filter(t=>String(t.date||'').slice(0,7)===month);
-  const todayTx=purchases.filter(t=>t.date===today);
-  const monthTotal=monthTx.reduce((a,t)=>a+Number(t.bill||0),0);
-  const todayTotal=todayTx.reduce((a,t)=>a+Number(t.bill||0),0);
-  const activeDays=new Set(monthTx.map(t=>t.date).filter(Boolean)).size;
-  const dailyAvg=activeDays?monthTotal/activeDays:0;
-  const avgEntry=monthTx.length?monthTotal/monthTx.length:0;
-  document.getElementById('paToday').textContent=paMoney(todayTotal);
-  document.getElementById('paMonthTotal').textContent=paMoney(monthTotal);
-  document.getElementById('paDailyAvg').textContent=paMoney(dailyAvg);
-  document.getElementById('paAvgEntry').textContent=paMoney(avgEntry);
-  document.getElementById('paTodayCount').textContent=todayTx.length+' '+(todayTx.length===1?'entry':'entries');
-  document.getElementById('paMonthDays').textContent=activeDays+' purchase '+(activeDays===1?'day':'days');
-  document.getElementById('paMonthEntries').textContent=monthTx.length+' '+(monthTx.length===1?'entry':'entries');
-  document.getElementById('paPeriodLabel').textContent=now.toLocaleDateString('en-IN',{month:'long',year:'numeric'});
-
-  const days=[];
-  for(let i=6;i>=0;i--){const d=new Date(now);d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const ds=paDateLocal(d);const amount=purchases.filter(t=>t.date===ds).reduce((a,t)=>a+Number(t.bill||0),0);days.push({date:ds,label:d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),amount});}
-  const maxDay=Math.max(1,...days.map(x=>x.amount));
-  document.getElementById('paDailyRows').innerHTML=days.map(x=>`<div class="pa-day-row"><div class="pa-day-label">${x.label}</div><div class="pa-bar-bg"><div class="pa-bar-fill" style="width:${x.amount?Math.max(5,x.amount/maxDay*100):0}%"></div></div><div class="pa-day-amount">${paMoney(x.amount)}</div></div>`).join('');
-
-  const shopMap={}; monthTx.forEach(t=>{const id=t.shopId||'__unknown__';shopMap[id]=(shopMap[id]||0)+Number(t.bill||0);});
-  const shops=Object.entries(shopMap).map(([id,amount])=>{const sh=(store.shops||[]).find(s=>s.id===id);return{name:sh?sh.name:'Unknown Shop',amount};}).sort((a,b)=>b.amount-a.amount).slice(0,5);
-  document.getElementById('paShopRows').innerHTML=shops.length?shops.map((x,i)=>`<div class="pa-rank"><div class="pa-num">${i+1}</div><div class="pa-name">${paEsc(x.name)}<div class="pa-meta">${monthTotal?((x.amount/monthTotal)*100).toFixed(1):0}% of monthly cost</div></div><div class="pa-cost">${paMoney(x.amount)}</div></div>`).join(''):'<div class="pa-empty">No purchase data this month</div>';
-
-  const itemMap={}; monthTx.forEach(t=>{const key=t.itemId||t.item||'__unknown__';if(!itemMap[key])itemMap[key]={name:t.item||'Unknown Item',qty:0,amount:0};itemMap[key].qty+=Number(t.qty||0);itemMap[key].amount+=Number(t.bill||0);});
-  const items=Object.values(itemMap).sort((a,b)=>b.amount-a.amount).slice(0,5);
-  document.getElementById('paItemRows').innerHTML=items.length?items.map((x,i)=>`<div class="pa-rank"><div class="pa-num">${i+1}</div><div class="pa-name">${paEsc(x.name)}<div class="pa-meta">Qty: ${x.qty}</div></div><div class="pa-cost">${paMoney(x.amount)}</div></div>`).join(''):'<div class="pa-empty">No item purchase data this month</div>';
-
-  const highDay=days.reduce((a,b)=>b.amount>a.amount?b:a,{amount:0,label:'—'});
-  const highShop=shops[0], highItem=items[0];
-  document.getElementById('paHighestDay').textContent=highDay.amount?highDay.label+' · '+paMoney(highDay.amount):'—';
-  document.getElementById('paHighestShop').textContent=highShop?paEsc(highShop.name)+' · '+paMoney(highShop.amount):'—';
-  document.getElementById('paHighestItem').textContent=highItem?paEsc(highItem.name)+' · '+paMoney(highItem.amount):'—';
-}
-
 function renderApp() {
   const activeTab = document.querySelector('.nav-item.active')?.id;
   if (activeTab === 'navShops' || activeTab === 'navItems') {
@@ -1581,7 +1438,6 @@ function renderApp() {
     : '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Koi recent transaction nahi hai.</div>';
 
   renderTxList();
-  renderPurchaseAnalytics();
 }
 
 function renderTxList() {
@@ -1619,22 +1475,30 @@ function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
 
-/* ===== Same effect for every clickable button ===== */
-const BUTTON_EFFECT_SELECTOR = '.btn, .icon-btn, .nav-item, .add-fab-btn';
-function triggerButtonEffect(e) {
-  const el = e.target.closest(BUTTON_EFFECT_SELECTOR);
+/* ===== Unified smooth jump effect trigger for ALL buttons (event-delegated
+   so it also works on buttons that get re-rendered inside dynamic
+   screens/modals like shop cards, item list, etc.)
+   Using pointerdown (fires the instant a finger/mouse presses down) instead
+   of click — many buttons (Save/Delete/Pay/Toggle) immediately re-render or
+   remove themselves from the DOM once tapped. On mobile that removal
+   happened before the animation ever got a chance to paint, so the effect
+   looked broken. Triggering on press-down gives the animation a head start
+   before any such re-render kicks in, on both touch and mouse. */
+const JUMP_SELECTOR = '.btn, .icon-btn, .nav-item, .add-fab-btn';
+function triggerJumpEffect(e) {
+  const el = e.target.closest(JUMP_SELECTOR);
   if (!el) return;
-  el.classList.remove('button-pop');
-  void el.offsetWidth;
-  el.classList.add('button-pop');
-  clearTimeout(el._buttonEffectTimer);
-  el._buttonEffectTimer = setTimeout(() => el.classList.remove('button-pop'), 460);
+  el.classList.remove('jump-effect');
+  void el.offsetWidth; // restart animation even on rapid repeated taps
+  el.classList.add('jump-effect');
+  el.addEventListener('animationend', () => el.classList.remove('jump-effect'), { once: true });
 }
 if (window.PointerEvent) {
-  document.addEventListener('pointerdown', triggerButtonEffect, { passive: true });
+  document.addEventListener('pointerdown', triggerJumpEffect, { passive: true });
 } else {
-  document.addEventListener('touchstart', triggerButtonEffect, { passive: true });
-  document.addEventListener('mousedown', triggerButtonEffect);
+  // Fallback for older browsers without Pointer Events support.
+  document.addEventListener('touchstart', triggerJumpEffect, { passive: true });
+  document.addEventListener('mousedown', triggerJumpEffect);
 }
 
 renderApp();
