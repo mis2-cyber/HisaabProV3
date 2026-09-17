@@ -298,9 +298,11 @@ body {
               box-shadow 0.25s ease, filter 0.2s ease;
 }
 
-.btn:hover, .icon-btn:hover, .nav-item:hover {
-  transform: translateY(-4px);
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover, .icon-btn:hover, .nav-item:hover {
+    transform: translateY(-4px);
+    filter: brightness(1.05);
+  }
 }
 
 .btn:focus-visible, .icon-btn:focus-visible, .add-fab-btn:focus-visible, .nav-item:focus-visible {
@@ -470,7 +472,7 @@ const DB_KEY = 'hisaab_pro_v9';
    Baaki HTML / CSS / SVG / UI ko touch nahi kiya gaya.
    ============================================================ */
 
-const GS_URL = 'https://script.google.com/macros/s/AKfycbxinNr598V5KbG5_5RdTGQyZWcdIcYWQUCw-kReBhyaZnFI5oWDofbS5MkU2y7dcPHe/exec';
+const GS_URL = 'https://script.google.com/macros/s/AKfycbxTRC1O6XolYT7jK1Ob5VMXyp3bkEfo-TOppRQnHEeoxfcHqZ-DKGhay8bwpREOxZIP/exec';
 
 let sheetsBusy = false;
 let sheetsQueued = false;
@@ -1430,15 +1432,29 @@ function escapeHtml(str) {
 
 /* ===== Unified smooth jump effect trigger for ALL buttons (event-delegated
    so it also works on buttons that get re-rendered inside dynamic
-   screens/modals like shop cards, item list, etc.) ===== */
-document.addEventListener('click', function (e) {
-  const el = e.target.closest('.btn, .icon-btn, .nav-item, .add-fab-btn');
+   screens/modals like shop cards, item list, etc.)
+   Using pointerdown (fires the instant a finger/mouse presses down) instead
+   of click — many buttons (Save/Delete/Pay/Toggle) immediately re-render or
+   remove themselves from the DOM once tapped. On mobile that removal
+   happened before the animation ever got a chance to paint, so the effect
+   looked broken. Triggering on press-down gives the animation a head start
+   before any such re-render kicks in, on both touch and mouse. */
+const JUMP_SELECTOR = '.btn, .icon-btn, .nav-item, .add-fab-btn';
+function triggerJumpEffect(e) {
+  const el = e.target.closest(JUMP_SELECTOR);
   if (!el) return;
   el.classList.remove('jump-effect');
-  void el.offsetWidth; // restart animation even on rapid repeated clicks
+  void el.offsetWidth; // restart animation even on rapid repeated taps
   el.classList.add('jump-effect');
   el.addEventListener('animationend', () => el.classList.remove('jump-effect'), { once: true });
-});
+}
+if (window.PointerEvent) {
+  document.addEventListener('pointerdown', triggerJumpEffect, { passive: true });
+} else {
+  // Fallback for older browsers without Pointer Events support.
+  document.addEventListener('touchstart', triggerJumpEffect, { passive: true });
+  document.addEventListener('mousedown', triggerJumpEffect);
+}
 
 renderApp();
 setTimeout(loadStateFromGoogleSheet, 300);
