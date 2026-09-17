@@ -412,6 +412,7 @@ body {
   </div>
   
   <div id="headerActionBtnContainer"></div>
+  <button id="sheetSyncBtn" class="icon-btn" title="Refresh from Google Sheet" onclick="refreshFromSheet()" style="margin-left:8px;">↻</button>
 </header>
 
 <main class="main-container">
@@ -662,7 +663,6 @@ function txToAPI(t) {
 
 /* ---------- Save complete store to Apps Script API ---------- */
 
-let hasUnsyncedLocalChanges = false;
 
 function saveStateToGoogleSheet() {
   if (!GS_URL) return;
@@ -705,7 +705,6 @@ function saveStateToGoogleSheet() {
       return;
     }
 
-    hasUnsyncedLocalChanges = false;
     setTimeout(loadStateFromGoogleSheet, 500);
   })
   .catch(function(error) {
@@ -721,6 +720,12 @@ function saveStateToGoogleSheet() {
 
 
 /* ---------- Load master data from Apps Script API ---------- */
+
+
+function refreshFromSheet() {
+  showToast('Google Sheet se latest data load ho raha hai...', 'info');
+  loadStateFromGoogleSheet();
+}
 
 function loadStateFromGoogleSheet() {
   if (!GS_URL) return;
@@ -763,15 +768,8 @@ function loadStateFromGoogleSheet() {
         tx: Array.isArray(data.transactions) ? data.transactions.map(apiTxToUI) : []
       };
 
-      // Never let a background read overwrite a local change that is still syncing.
-      if (hasUnsyncedLocalChanges) {
-        console.log('Skipped background load: local changes are still syncing.');
-        return;
-      }
-
       // Sheet is the master database. Replace the local cache with Sheet data.
       store = newStore;
-      localStorage.setItem(DB_KEY, JSON.stringify(store));
       renderApp();
 
       console.log('Hisaab Pro loaded from Google Sheets:', {
@@ -809,7 +807,7 @@ const initialState = {
   tx: []
 };
 
-let store = JSON.parse(localStorage.getItem(DB_KEY) || 'null') || initialState;
+let store = initialState;
 
 const fmtMoney = n => {
   const rupeeSVG = `<span class="rupee-icon">₹</span>`;
@@ -912,8 +910,6 @@ function showConfirmModal(title, text, onConfirm) {
 function saveState() {
   // Keep the local change protected while Google Sheets is syncing.
   // This prevents the initial background load from overwriting a newly added shop.
-  hasUnsyncedLocalChanges = true;
-  localStorage.setItem(DB_KEY, JSON.stringify(store));
   renderApp();
   saveStateToGoogleSheet();
 }
@@ -1652,7 +1648,7 @@ if (window.PointerEvent) {
 }
 
 renderApp();
-setTimeout(loadStateFromGoogleSheet, 300);
+loadStateFromGoogleSheet();
 
 
 </script>
