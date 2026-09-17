@@ -291,17 +291,31 @@ body {
 
 .hidden { display: none !important; }
 
-/* ===== Unified smooth "jump" effect for ALL clickable buttons ===== */
+/* ===== Stable bounce effect for ALL buttons ===== */
 .btn, .icon-btn, .nav-item, .add-fab-btn {
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.25s ease, filter 0.2s ease;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@keyframes stableButtonBounce {
+  0%   { transform: scale(1); }
+  22%  { transform: scale(0.96); }
+  48%  { transform: scale(1.035); }
+  72%  { transform: scale(0.985); }
+  100% { transform: scale(1); }
+}
+
+.btn.button-bounce,
+.icon-btn.button-bounce,
+.nav-item.button-bounce,
+.add-fab-btn.button-bounce {
+  animation: stableButtonBounce 0.38s cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .btn:hover, .icon-btn:hover, .nav-item:hover {
-    transform: translateY(-4px);
-    filter: brightness(1.05);
+    filter: brightness(1.04);
   }
 }
 
@@ -310,31 +324,72 @@ body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
 }
 
-@keyframes smoothJump {
-  0%   { transform: translateY(0) scale(1); }
-  30%  { transform: translateY(-14px) scale(1.08); }
-  55%  { transform: translateY(2px) scale(0.96); }
-  75%  { transform: translateY(-5px) scale(1.02); }
-  100% { transform: translateY(0) scale(1); }
-}
 
-.jump-effect {
-  animation: smoothJump 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* ===== Item-wise Purchase Analytics ===== */
+.purchase-bar-row {
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 44%;
+  align-items:center;
+  gap:10px;
+  margin:10px 0;
 }
-
-/* The bottom nav bar has a fixed, tight height (65px). Lifting a nav
-   button up by 14px there uncovers empty bar background beneath it and
-   looks like the row is shifting / leaving a gap. So nav buttons get a
-   contained scale-only "pop" instead of the vertical jump used elsewhere. */
-.nav-item.jump-effect {
-  animation: navPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+.purchase-bar-label {
+  min-width:0;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
-@keyframes navPop {
-  0%   { transform: scale(1); }
-  30%  { transform: scale(1.18); }
-  55%  { transform: scale(0.94); }
-  75%  { transform: scale(1.06); }
-  100% { transform: scale(1); }
+.purchase-bar-track {
+  height:12px;
+  background:var(--gray-bg);
+  border-radius:999px;
+  overflow:hidden;
+  border:1px solid var(--border);
+}
+.purchase-bar-fill {
+  height:100%;
+  background:linear-gradient(90deg,#2563eb,#60a5fa);
+  border-radius:999px;
+  min-width:3px;
+}
+.purchase-qty {
+  text-align:right;
+  font-size:11px;
+  font-weight:800;
+  color:var(--text-main);
+  margin-top:2px;
+}
+.purchase-summary-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:9px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.purchase-summary-row:last-child { border-bottom:0; }
+.purchase-summary-name {
+  min-width:0;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.purchase-summary-meta {
+  flex:0 0 auto;
+  font-weight:800;
+}
+.purchase-empty {
+  text-align:center;
+  color:var(--text-muted);
+  font-size:12px;
+  padding:14px 6px;
+}
+@media (max-width:420px) {
+  .purchase-bar-row { grid-template-columns:minmax(0, 1fr) 42%; gap:8px; }
 }
 
 @media print {
@@ -384,6 +439,20 @@ body {
     <div class="panel">
       <div class="panel-head"><h3>Active Shops Summary</h3></div>
       <div id="dashShopCards"></div>
+    </div>
+
+
+    <div class="panel" id="purchaseAnalyticsPanel">
+      <div class="panel-head">
+        <h3>Purchase Analytics</h3>
+        <select id="purchaseAnalyticsPeriod" onchange="renderPurchaseAnalytics()" style="border:1px solid var(--border); border-radius:10px; padding:7px 9px; font-size:11px; font-weight:700; background:#fff; color:var(--text-main);">
+          <option value="month">This Month</option>
+          <option value="lastMonth">Last Month</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+      <div id="purchaseAnalyticsGraph"></div>
+      <div id="purchaseAnalyticsList" style="margin-top:10px;"></div>
     </div>
 
     <div class="panel">
@@ -593,6 +662,8 @@ function txToAPI(t) {
 
 /* ---------- Save complete store to Apps Script API ---------- */
 
+let hasUnsyncedLocalChanges = false;
+
 function saveStateToGoogleSheet() {
   if (!GS_URL) return;
 
@@ -634,6 +705,7 @@ function saveStateToGoogleSheet() {
       return;
     }
 
+    hasUnsyncedLocalChanges = false;
     setTimeout(loadStateFromGoogleSheet, 500);
   })
   .catch(function(error) {
@@ -691,6 +763,12 @@ function loadStateFromGoogleSheet() {
         tx: Array.isArray(data.transactions) ? data.transactions.map(apiTxToUI) : []
       };
 
+      // Never let a background read overwrite a local change that is still syncing.
+      if (hasUnsyncedLocalChanges) {
+        console.log('Skipped background load: local changes are still syncing.');
+        return;
+      }
+
       // Sheet is the master database. Replace the local cache with Sheet data.
       store = newStore;
       localStorage.setItem(DB_KEY, JSON.stringify(store));
@@ -738,7 +816,10 @@ const fmtMoney = n => {
   return rupeeSVG + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 };
 
-const getToday = () => new Date().toISOString().slice(0, 10);
+const getToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
 const getCurrentTime = () => new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 
 function normalizeTimeForUI(timeStr) {
@@ -829,7 +910,9 @@ function showConfirmModal(title, text, onConfirm) {
 }
 
 function saveState() {
-  // Local cache remains as a quick local fallback.
+  // Keep the local change protected while Google Sheets is syncing.
+  // This prevents the initial background load from overwriting a newly added shop.
+  hasUnsyncedLocalChanges = true;
   localStorage.setItem(DB_KEY, JSON.stringify(store));
   renderApp();
   saveStateToGoogleSheet();
@@ -844,14 +927,50 @@ function getShopBalance(shopId) {
   return Number(shop.opening || 0) + netTx;
 }
 
+
+function getNextDocumentId(prefix) {
+  const re = new RegExp('^' + prefix + '-(\\d{4,5})$');
+  let max = 0;
+  (store.tx || []).forEach(t => {
+    const m = String(t.id || '').match(re);
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return prefix + '-' + String(max + 1).padStart(4, '0');
+}
+
+function getTxChronologyKey(t) {
+  const date = String(t.date || '');
+  const time = normalizeTimeForUI(t.time || '');
+  let mins = 0;
+  const m = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (m) {
+    let h = Number(m[1]) % 12;
+    if (m[3].toUpperCase() === 'PM') h += 12;
+    mins = h * 60 + Number(m[2]);
+  }
+  return `${date} ${String(mins).padStart(4, '0')}`;
+}
+
+
 function getPreviousBalanceBeforeTx(shopId, txId) {
   const shop = store.shops.find(s => s.id === shopId);
-  if (!shop) return 0;
+  const current = store.tx.find(x => x.id === txId);
+  if (!shop || !current) return 0;
 
-  const previousTxList = store.tx
-    .filter(t => t.shopId === shopId && t.createdAt < (store.tx.find(x => x.id === txId)?.createdAt || Infinity));
+  const currentKey = getTxChronologyKey(current);
+  const currentCreated = Number(current.createdAt || 0);
 
-  const netTx = previousTxList.reduce((acc, t) => acc + (t.type === 'purchase' ? t.bill : -t.paid), 0);
+  const previousTxList = store.tx.filter(t => {
+    if (t.shopId !== shopId || t.id === txId) return false;
+    const key = getTxChronologyKey(t);
+    if (key < currentKey) return true;
+    if (key > currentKey) return false;
+    return Number(t.createdAt || 0) < currentCreated;
+  });
+
+  const netTx = previousTxList.reduce((acc, t) =>
+    acc + (t.type === 'purchase' ? Number(t.bill || 0) : -Number(t.paid || 0)), 0);
+
   return Number(shop.opening || 0) + netTx;
 }
 
@@ -944,7 +1063,7 @@ function savePurchase() {
   }
 
   store.tx.push({
-    id: 'INV-' + Math.floor(100000 + Math.random() * 900000), 
+    id: getNextDocumentId('INV'), 
     type: 'purchase', date, time: timeStr, shopId,
     item: item.name, unit: item.unit, qty, rate, bill: qty * rate, paid: 0, remark, createdAt: Date.now()
   });
@@ -1034,7 +1153,7 @@ function savePayment() {
   }
 
   store.tx.push({
-    id: 'PAY-' + Math.floor(100000 + Math.random() * 900000),
+    id: getNextDocumentId('PAY'),
     type: 'payment', date, time: timeStr, shopId,
     item: `Payment Received (${mode})`, qty: 1, rate: amount, bill: 0, paid: amount, remark: mode, createdAt: Date.now()
   });
@@ -1276,7 +1395,76 @@ function getEmptyStateUI(title, subtitle, btnText, btnAction) {
   `;
 }
 
+
+function renderPurchaseAnalytics() {
+  const graphEl = document.getElementById('purchaseAnalyticsGraph');
+  const listEl = document.getElementById('purchaseAnalyticsList');
+  if (!graphEl || !listEl) return;
+
+  const period = document.getElementById('purchaseAnalyticsPeriod')?.value || 'month';
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  function inPeriod(dateStr) {
+    if (period === 'all') return true;
+    const p = String(dateStr || '').split('-').map(Number);
+    if (p.length !== 3 || p.some(Number.isNaN)) return false;
+    if (period === 'month') return p[0] === year && p[1] === month + 1;
+    const last = new Date(year, month - 1, 1);
+    return p[0] === last.getFullYear() && p[1] === last.getMonth() + 1;
+  }
+
+  const grouped = {};
+  (store.tx || []).forEach(t => {
+    if (t.type !== 'purchase' || !inPeriod(t.date)) return;
+    const name = String(t.item || 'Unknown Item').trim() || 'Unknown Item';
+    const key = String(t.itemId || name).trim().toLowerCase();
+    if (!grouped[key]) grouped[key] = { name, qty: 0, unit: String(t.unit || '').trim(), count: 0 };
+    grouped[key].qty += Number(t.qty || 0);
+    grouped[key].count += 1;
+    if (!grouped[key].unit && t.unit) grouped[key].unit = String(t.unit);
+  });
+
+  const rows = Object.values(grouped)
+    .filter(x => Number.isFinite(x.qty) && x.qty > 0)
+    .sort((a,b) => b.qty - a.qty || a.name.localeCompare(b.name))
+    .slice(0, 8);
+
+  if (!rows.length) {
+    graphEl.innerHTML = '<div class="purchase-empty">Is period mein purchase data nahi hai.</div>';
+    listEl.innerHTML = '';
+    return;
+  }
+
+  const maxQty = rows[0].qty || 1;
+
+  graphEl.innerHTML = rows.map((r, idx) => {
+    const pct = Math.max(3, (r.qty / maxQty) * 100);
+    const qty = Number.isInteger(r.qty) ? r.qty.toLocaleString('en-IN') : r.qty.toLocaleString('en-IN', {maximumFractionDigits:2});
+    return `
+      <div class="purchase-bar-row">
+        <div class="purchase-bar-label" title="${escapeHtml(r.name)}">${idx + 1}. ${escapeHtml(r.name)}</div>
+        <div>
+          <div class="purchase-bar-track"><div class="purchase-bar-fill" style="width:${pct}%;"></div></div>
+          <div class="purchase-qty">${qty} ${escapeHtml(r.unit)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.innerHTML = rows.map((r, idx) => {
+    const qty = Number.isInteger(r.qty) ? r.qty.toLocaleString('en-IN') : r.qty.toLocaleString('en-IN', {maximumFractionDigits:2});
+    return `
+      <div class="purchase-summary-row">
+        <div class="purchase-summary-name">${idx + 1}. ${escapeHtml(r.name)}</div>
+        <div class="purchase-summary-meta">${qty} ${escapeHtml(r.unit)} · ${r.count} purchase${r.count === 1 ? '' : 's'}</div>
+      </div>`;
+  }).join('');
+}
+
+
 function renderApp() {
+  renderPurchaseAnalytics();
   const activeTab = document.querySelector('.nav-item.active')?.id;
   if (activeTab === 'navShops' || activeTab === 'navItems') {
     switchTab(activeTab === 'navShops' ? 'shops' : 'items');
@@ -1445,30 +1633,22 @@ function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
 
-/* ===== Unified smooth jump effect trigger for ALL buttons (event-delegated
-   so it also works on buttons that get re-rendered inside dynamic
-   screens/modals like shop cards, item list, etc.)
-   Using pointerdown (fires the instant a finger/mouse presses down) instead
-   of click — many buttons (Save/Delete/Pay/Toggle) immediately re-render or
-   remove themselves from the DOM once tapped. On mobile that removal
-   happened before the animation ever got a chance to paint, so the effect
-   looked broken. Triggering on press-down gives the animation a head start
-   before any such re-render kicks in, on both touch and mouse. */
-const JUMP_SELECTOR = '.btn, .icon-btn, .nav-item, .add-fab-btn';
-function triggerJumpEffect(e) {
-  const el = e.target.closest(JUMP_SELECTOR);
+/* ===== Stable bounce trigger for ALL buttons ===== */
+const BUTTON_BOUNCE_SELECTOR = '.btn, .icon-btn, .nav-item, .add-fab-btn';
+function triggerButtonBounce(e) {
+  const el = e.target.closest(BUTTON_BOUNCE_SELECTOR);
   if (!el) return;
-  el.classList.remove('jump-effect');
-  void el.offsetWidth; // restart animation even on rapid repeated taps
-  el.classList.add('jump-effect');
-  el.addEventListener('animationend', () => el.classList.remove('jump-effect'), { once: true });
+  el.classList.remove('button-bounce');
+  void el.offsetWidth;
+  el.classList.add('button-bounce');
+  clearTimeout(el._bounceTimer);
+  el._bounceTimer = setTimeout(() => el.classList.remove('button-bounce'), 420);
 }
 if (window.PointerEvent) {
-  document.addEventListener('pointerdown', triggerJumpEffect, { passive: true });
+  document.addEventListener('pointerdown', triggerButtonBounce, { passive: true });
 } else {
-  // Fallback for older browsers without Pointer Events support.
-  document.addEventListener('touchstart', triggerJumpEffect, { passive: true });
-  document.addEventListener('mousedown', triggerJumpEffect);
+  document.addEventListener('touchstart', triggerButtonBounce, { passive: true });
+  document.addEventListener('mousedown', triggerButtonBounce);
 }
 
 renderApp();
