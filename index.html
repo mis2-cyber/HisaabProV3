@@ -203,6 +203,7 @@ body {
   width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border);
   background: #fff; color: var(--text-main); display: grid; place-items: center;
   cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; overflow: hidden;
 }
 .icon-btn:hover { transform: scale(1.08); background: var(--gray-bg); }
 .icon-btn:active { transform: scale(0.9); }
@@ -259,17 +260,19 @@ body {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   background: transparent; border: 0; color: var(--text-muted);
   font-size: 11px; font-weight: 700; width: 20%; cursor: pointer; transition: all 0.2s ease;
+  position: relative; overflow: hidden;
 }
 .nav-item svg { width: 22px; height: 22px; stroke-width: 2.2; transition: transform 0.2s ease; }
 .nav-item.active { color: var(--primary); }
 .nav-item.active svg { transform: translateY(-2px); }
 
-.nav-item.add-btn-wrapper { position: relative; top: -14px; }
+.nav-item.add-btn-wrapper { position: relative; top: -14px; overflow: visible; }
 .add-fab-btn {
   width: 52px; height: 52px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;
   border-radius: 50%; display: grid; place-items: center;
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4); border: 3px solid #fff;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative; overflow: hidden;
 }
 .add-fab-btn:hover { transform: scale(1.1) rotate(90deg); box-shadow: 0 12px 28px rgba(37, 99, 235, 0.5); }
 .add-fab-btn:active { transform: scale(0.95); }
@@ -287,6 +290,35 @@ body {
 .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 
 .hidden { display: none !important; }
+
+/* ===== Unified smooth "jump" effect for ALL clickable buttons ===== */
+.btn, .icon-btn, .nav-item, .add-fab-btn {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.25s ease, filter 0.2s ease;
+}
+
+.btn:hover, .icon-btn:hover, .nav-item:hover {
+  transform: translateY(-4px);
+  filter: brightness(1.05);
+}
+
+.btn:focus-visible, .icon-btn:focus-visible, .add-fab-btn:focus-visible, .nav-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+@keyframes smoothJump {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-14px) scale(1.08); }
+  55%  { transform: translateY(2px) scale(0.96); }
+  75%  { transform: translateY(-5px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.jump-effect {
+  animation: smoothJump 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 
 @media print {
   body * { visibility: hidden; }
@@ -1395,6 +1427,18 @@ function renderTxList() {
 function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
 }
+
+/* ===== Unified smooth jump effect trigger for ALL buttons (event-delegated
+   so it also works on buttons that get re-rendered inside dynamic
+   screens/modals like shop cards, item list, etc.) ===== */
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('.btn, .icon-btn, .nav-item, .add-fab-btn');
+  if (!el) return;
+  el.classList.remove('jump-effect');
+  void el.offsetWidth; // restart animation even on rapid repeated clicks
+  el.classList.add('jump-effect');
+  el.addEventListener('animationend', () => el.classList.remove('jump-effect'), { once: true });
+});
 
 renderApp();
 setTimeout(loadStateFromGoogleSheet, 300);
