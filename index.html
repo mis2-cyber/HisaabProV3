@@ -405,14 +405,13 @@ body {
 
 <header class="app-header">
   <div class="app-brand">
-    <div class="app-brand-icon">
+    <div class="app-brand-icon" title="Refresh from Google Sheet" onclick="refreshFromSheet()" style="cursor:pointer;" aria-label="Refresh from Google Sheet">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>
     </div>
     <span>Hisaab Pro</span>
   </div>
   
   <div id="headerActionBtnContainer"></div>
-  <button id="sheetSyncBtn" class="icon-btn" title="Refresh from Google Sheet" onclick="refreshFromSheet()" style="margin-left:8px;">↻</button>
 </header>
 
 <main class="main-container">
@@ -723,7 +722,7 @@ function saveStateToGoogleSheet() {
 
 
 function refreshFromSheet() {
-  showToast('Latest data load ho raha hai...', 'info');
+  showToast('Refreshing...', 'info');
   loadStateFromGoogleSheet();
 }
 
@@ -1065,7 +1064,7 @@ function savePurchase() {
   });
 
   document.getElementById('pRemark').value = '';
-  showToast('Purchase entry save ho gayi!', 'success');
+  showToast('Purchase saved.', 'success');
   saveState();
   switchTab('transactions');
 }
@@ -1154,7 +1153,7 @@ function savePayment() {
     item: `Payment Received (${mode})`, qty: 1, rate: amount, bill: 0, paid: amount, remark: mode, createdAt: Date.now()
   });
 
-  showToast('Payment successfully record ho gayi!', 'success');
+  showToast('Payment saved.', 'success');
   closeModal();
   saveState();
 }
@@ -1261,17 +1260,17 @@ function saveShop(editId) {
   const openDate = document.getElementById('sOpenDate').value || getToday();
 
   if (!name) {
-    showToast('Shop Name zaroori hai', 'danger');
+    showToast('Shop name required.', 'danger');
     return;
   }
 
   if (editId) {
     const s = store.shops.find(x => x.id === editId);
     if (s) { s.name = name; s.phone = phone; s.openDate = openDate; }
-    showToast('Shop details update ho gayi!', 'success');
+    showToast('Shop updated.', 'success');
   } else {
     store.shops.push({ id: 'S' + Date.now(), name, phone, opening, status: 'active', openDate, closeDate: '' });
-    showToast('Nayi shop add ho gayi!', 'success');
+    showToast('Shop added.', 'success');
   }
   closeModal(); saveState();
 }
@@ -1353,10 +1352,10 @@ function saveItem(editId) {
   if (editId) {
     const i = store.items.find(x => x.id === editId);
     if (i) { i.name = name; i.rate = rate; i.unit = unit; }
-    showToast('Item update ho gaya!', 'success');
+    showToast('Item updated.', 'success');
   } else {
     store.items.push({ id: 'I' + Date.now(), name, rate, unit });
-    showToast('Naya item catalog me add hua!', 'success');
+    showToast('Item added.', 'success');
   }
   closeModal(); saveState();
 }
@@ -1365,7 +1364,7 @@ function deleteItem(itemId) {
   const item = store.items.find(i => i.id === itemId);
   showConfirmModal('Delete Item', `Remove "${item ? item.name : 'item'}" from catalog?`, () => {
     store.items = store.items.filter(i => i.id !== itemId);
-    showToast('Item delete hua.', 'danger');
+    showToast('Item deleted.', 'danger');
     saveState();
   });
 }
