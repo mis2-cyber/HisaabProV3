@@ -873,70 +873,15 @@ function getShopBalance(shopId) {
   return Number(shop.opening || 0) + netTx;
 }
 
-function getTxChronologyKey(t) {
-  const date = String(t?.date || '').trim();
-  const parts = date.split('-');
-  const ymd = parts.length === 3
-    ? parts[0].padStart(4, '0') + parts[1].padStart(2, '0') + parts[2].padStart(2, '0')
-    : '00000000';
-
-  let time = String(t?.time || '').trim().toUpperCase();
-  let minutes = 0;
-
-  const m12 = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/);
-  const m24 = time.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
-
-  if (m12) {
-    let h = Number(m12[1]);
-    const min = Number(m12[2]);
-    if (m12[3] === 'AM') h = h % 12;
-    else h = (h % 12) + 12;
-    minutes = h * 60 + min;
-  } else if (m24) {
-    minutes = Number(m24[1]) * 60 + Number(m24[2]);
-  }
-
-  const created = Number(t?.createdAt) || new Date(t?.createdAt || 0).getTime() || 0;
-  return { ymd, minutes, created };
-}
-
-function compareTxChronology(a, b) {
-  const ka = getTxChronologyKey(a);
-  const kb = getTxChronologyKey(b);
-
-  if (ka.ymd !== kb.ymd) return ka.ymd.localeCompare(kb.ymd);
-  if (ka.minutes !== kb.minutes) return ka.minutes - kb.minutes;
-  return ka.created - kb.created;
-}
-
 function getPreviousBalanceBeforeTx(shopId, txId) {
   const shop = store.shops.find(s => s.id === shopId);
   if (!shop) return 0;
 
-  const currentTx = store.tx.find(t => t.id === txId);
-  if (!currentTx) return Number(shop.opening || 0);
-
   const previousTxList = store.tx
-    .filter(t => t.shopId === shopId && t.id !== txId && compareTxChronology(t, currentTx) < 0);
+    .filter(t => t.shopId === shopId && t.createdAt < (store.tx.find(x => x.id === txId)?.createdAt || Infinity));
 
-  const netTx = previousTxList.reduce(
-    (acc, t) => acc + (t.type === 'purchase' ? Number(t.bill || 0) : -Number(t.paid || 0)),
-    0
-  );
-
+  const netTx = previousTxList.reduce((acc, t) => acc + (t.type === 'purchase' ? t.bill : -t.paid), 0);
   return Number(shop.opening || 0) + netTx;
-}
-
-function getNextDocumentId(prefix) {
-  const re = new RegExp('^' + prefix + '-(\\d{4,5})$');
-  let max = 0;
-
-  (store.tx || []).forEach(t => {
-    const m = String(t.id || '').match(re);
-    if (m) max = Math.max(max, Number(m[1]));
-  });
-
-  return prefix + '-' + String(max + 1).padStart(4, '0');
 }
 
 function switchTab(tabId) {
@@ -1029,7 +974,7 @@ function savePurchase() {
   }
 
   store.tx.push({
-    id: getNextDocumentId('INV'), 
+    id: 'INV-' + Math.floor(100000 + Math.random() * 900000), 
     type: 'purchase', date, time: timeStr, shopId,
     item: item.name, unit: item.unit, qty, rate, bill: qty * rate, paid: 0, remark, createdAt: Date.now()
   });
@@ -1119,7 +1064,7 @@ function savePayment() {
   }
 
   store.tx.push({
-    id: getNextDocumentId('PAY'),
+    id: 'PAY-' + Math.floor(100000 + Math.random() * 900000),
     type: 'payment', date, time: timeStr, shopId,
     item: `Payment Received (${mode})`, qty: 1, rate: amount, bill: 0, paid: amount, remark: mode, createdAt: Date.now()
   });
