@@ -1436,42 +1436,84 @@ function getEmptyStateUI(title, subtitle, btnText, btnAction) {
 
 function renderPurchaseAnalytics() {
   const graphEl = document.getElementById('purchaseAnalyticsGraph');
-  const listEl = document.getElementById('purchaseAnalyticsList');
-  if (!graphEl || !listEl) return;
+  if (!graphEl) return;
 
+  const listEl = document.getElementById('purchaseAnalyticsList');
   const period = document.getElementById('purchaseAnalyticsPeriod')?.value || 'month';
+
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
 
+  function parsePurchaseDate(dateStr) {
+    const s = String(dateStr || '').trim();
+    if (!s) return null;
+
+    // Main Sheet/API format: YYYY-MM-DD
+    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+
+    // Also handle DD/MM/YYYY or DD-MM-YYYY if Sheet/API returns that.
+    m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
   function inPeriod(dateStr) {
     if (period === 'all') return true;
-    const p = String(dateStr || '').split('-').map(Number);
-    if (p.length !== 3 || p.some(Number.isNaN)) return false;
-    if (period === 'month') return p[0] === year && p[1] === month + 1;
-    const last = new Date(year, month - 1, 1);
-    return p[0] === last.getFullYear() && p[1] === last.getMonth() + 1;
+
+    const d = parsePurchaseDate(dateStr);
+    if (!d) return false;
+
+    if (period === 'month') {
+      return d.getFullYear() === year && d.getMonth() === month;
+    }
+
+    const lastMonth = new Date(year, month - 1, 1);
+    return d.getFullYear() === lastMonth.getFullYear() &&
+           d.getMonth() === lastMonth.getMonth();
   }
 
   const grouped = {};
+
   (store.tx || []).forEach(t => {
-    if (t.type !== 'purchase' || !inPeriod(t.date)) return;
+    if (String(t.type || '').toLowerCase() !== 'purchase') return;
+    if (!inPeriod(t.date)) return;
+
     const name = String(t.item || 'Unknown Item').trim() || 'Unknown Item';
     const key = String(t.itemId || name).trim().toLowerCase();
-    if (!grouped[key]) grouped[key] = { name, qty: 0, unit: String(t.unit || '').trim(), count: 0 };
-    grouped[key].qty += Number(t.qty || 0);
-    grouped[key].count += 1;
-    if (!grouped[key].unit && t.unit) grouped[key].unit = String(t.unit);
+    const qty = Number(t.qty || 0);
+
+    if (!Number.isFinite(qty) || qty <= 0) return;
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        name,
+        qty: 0,
+        unit: String(t.unit || '').trim()
+      };
+    }
+
+    grouped[key].qty += qty;
+
+    if (!grouped[key].unit && t.unit) {
+      grouped[key].unit = String(t.unit).trim();
+    }
   });
 
   const rows = Object.values(grouped)
-    .filter(x => Number.isFinite(x.qty) && x.qty > 0)
-    .sort((a,b) => b.qty - a.qty || a.name.localeCompare(b.name))
+    .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
     .slice(0, 8);
 
   if (!rows.length) {
-    graphEl.innerHTML = '<div class="purchase-empty">Is period mein purchase data nahi hai.</div>';
-    listEl.innerHTML = '';
+    graphEl.innerHTML = `
+      <div class="purchase-empty">
+        No purchase data for this period.
+      </div>
+    `;
+    if (listEl) listEl.innerHTML = '';
     return;
   }
 
@@ -1479,27 +1521,28 @@ function renderPurchaseAnalytics() {
 
   graphEl.innerHTML = rows.map((r, idx) => {
     const pct = Math.max(3, (r.qty / maxQty) * 100);
-    const qty = Number.isInteger(r.qty) ? r.qty.toLocaleString('en-IN') : r.qty.toLocaleString('en-IN', {maximumFractionDigits:2});
+    const qty = Number.isInteger(r.qty)
+      ? r.qty.toLocaleString('en-IN')
+      : r.qty.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
     return `
       <div class="purchase-bar-row">
-        <div class="purchase-bar-label" title="${escapeHtml(r.name)}">${idx + 1}. ${escapeHtml(r.name)}</div>
+        <div class="purchase-bar-label" title="${escapeHtml(r.name)}">
+          ${idx + 1}. ${escapeHtml(r.name)}
+        </div>
         <div>
-          <div class="purchase-bar-track"><div class="purchase-bar-fill" style="width:${pct}%;"></div></div>
+          <div class="purchase-bar-track">
+            <div class="purchase-bar-fill" style="width:${pct}%;"></div>
+          </div>
           <div class="purchase-qty">${qty} ${escapeHtml(r.unit)}</div>
         </div>
-      </div>`;
+      </div>
+    `;
   }).join('');
 
-  listEl.innerHTML = rows.map((r, idx) => {
-    const qty = Number.isInteger(r.qty) ? r.qty.toLocaleString('en-IN') : r.qty.toLocaleString('en-IN', {maximumFractionDigits:2});
-    return `
-      <div class="purchase-summary-row">
-        <div class="purchase-summary-name">${idx + 1}. ${escapeHtml(r.name)}</div>
-        <div class="purchase-summary-meta">${qty} ${escapeHtml(r.unit)} · ${r.count} purchase${r.count === 1 ? '' : 's'}</div>
-      </div>`;
-  }).join('');
+  // Keep the old lower list disabled/empty. Graph only.
+  if (listEl) listEl.innerHTML = '';
 }
-
 
 function renderApp() {
   renderPurchaseAnalytics();
