@@ -397,6 +397,10 @@ body {
   #billPrintArea, #billPrintArea * { visibility: visible; }
   #billPrintArea { position: absolute; left: 0; top: 0; width: 100%; }
 }
+
+/* Purchase Analytics: graph only */
+#purchaseAnalyticsList { display:none !important; }
+
 </style>
 </head>
 <body>
@@ -452,7 +456,6 @@ body {
         </select>
       </div>
       <div id="purchaseAnalyticsGraph"></div>
-      <div id="purchaseAnalyticsList" style="margin-top:10px;"></div>
     </div>
 
     <div class="panel">
@@ -1102,6 +1105,8 @@ function savePurchase() {
   });
 
   document.getElementById('pRemark').value = '';
+  document.getElementById('pQty').value = '1';
+  recalcPurchase();
   showToast('Purchase saved.', 'success');
   saveState();
   switchTab('transactions');
