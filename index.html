@@ -663,35 +663,59 @@ function txToAPI(t) {
 /* ---------- Save complete store to Apps Script API ---------- */
 
 
-async function saveStateToGoogleSheet() {
+function saveStateToGoogleSheet() {
   if (!GS_URL) return;
-  if (sheetsBusy) { sheetsQueued = true; return; }
+
+  if (sheetsBusy) {
+    sheetsQueued = true;
+    return;
+  }
+
   sheetsBusy = true;
-  try {
-    // Always fetch the latest Sheet before saving. Local/browser data never
-    // replaces the Sheet wholesale. Only actual app changes are overlaid.
-    const latest = await getLatestSheetData();
-    store = mergeLatestSheetWithExplicitLocalChanges(latest);
-    const payload = {
-      action: 'saveWholeStore',
-      store: {
-        shops: (store.shops || []).map(shopToAPI),
-        items: (store.items || []).map(itemToAPI),
-        transactions: (store.tx || []).map(txToAPI)
-      }
-    };
-    await fetch(GS_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload) });
+
+  const payload = {
+    action: 'saveWholeStore',
+    store: {
+      shops: (store.shops || []).map(shopToAPI),
+      items: (store.items || []).map(itemToAPI),
+      transactions: (store.tx || []).map(txToAPI)
+    }
+  };
+
+  /*
+   * no-cors is intentional here because Apps Script Web Apps
+   * do not expose normal browser CORS headers.
+   * After saving, we reload the master data using JSONP.
+   */
+  fetch(GS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(function() {
     sheetsBusy = false;
-    sheetsQueued = false;
+
+    if (sheetsQueued) {
+      sheetsQueued = false;
+      saveStateToGoogleSheet();
+      return;
+    }
+
     setTimeout(loadStateFromGoogleSheet, 500);
-    showToast('Saved.');
-  } catch (error) {
+  })
+  .catch(function(error) {
     sheetsBusy = false;
     console.error('Google Sheets API save failed:', error);
-    showToast('Save failed.');
-  }
-}
 
+    if (sheetsQueued) {
+      sheetsQueued = false;
+      saveStateToGoogleSheet();
+    }
+  });
+}
 
 
 /* ---------- Load master data from Apps Script API ---------- */
@@ -743,9 +767,8 @@ function loadStateFromGoogleSheet() {
         tx: Array.isArray(data.transactions) ? data.transactions.map(apiTxToUI) : []
       };
 
-      // Google Sheet is the live source. No localStorage/cache is used.
+      // Sheet is the master database. Replace the local cache with Sheet data.
       store = newStore;
-      sheetBaseline = cloneStore(store);
       renderApp();
 
       console.log('Hisaab Pro loaded from Google Sheets:', {
@@ -784,67 +807,6 @@ const initialState = {
 };
 
 let store = initialState;
-
-let sheetBaseline = JSON.parse(JSON.stringify(store));
-
-function cloneStore(s) { return JSON.parse(JSON.stringify(s || {shops:[], items:[], tx:[]})); }
-
-function mergeLatestSheetWithExplicitLocalChanges(latest) {
-  const base = sheetBaseline || {shops:[], items:[], tx:[]};
-  const local = store || {shops:[], items:[], tx:[]};
-  function mergeRows(sheetRows, baseRows, localRows) {
-    const result = [...(sheetRows || [])];
-    const baseMap = new Map((baseRows || []).map(r => [String(r.id), r]));
-    const localMap = new Map((localRows || []).map(r => [String(r.id), r]));
-    for (const [id, row] of localMap) {
-      const old = baseMap.get(id);
-      if (!old || JSON.stringify(row) !== JSON.stringify(old)) {
-        const i = result.findIndex(r => String(r.id) === id);
-        if (i >= 0) result[i] = row; else result.push(row);
-      }
-    }
-    // Only records explicitly missing from the current app state are removed.
-    // Since the baseline is the last Sheet load, this represents a manual delete.
-    for (const [id] of baseMap) {
-      if (!localMap.has(id)) {
-        const i = result.findIndex(r => String(r.id) === id);
-        if (i >= 0) result.splice(i, 1);
-      }
-    }
-    return result;
-  }
-  return {
-    shops: mergeRows(latest.shops, base.shops, local.shops),
-    items: mergeRows(latest.items, base.items, local.items),
-    tx: mergeRows(latest.tx, base.tx, local.tx)
-  };
-}
-
-function getLatestSheetData() {
-  return new Promise((resolve, reject) => {
-    const cb = "__hisaabSafe_" + Date.now() + Math.random().toString(36).slice(2);
-    const script = document.createElement("script");
-    let done = false;
-    function cleanup(){ delete window[cb]; if(script.parentNode) script.parentNode.removeChild(script); }
-    window[cb] = function(result){
-      if(done) return; done=true;
-      try {
-        if(!result || result.ok !== true || !result.data) throw new Error("Invalid Sheet response");
-        const d=result.data;
-        resolve({
-          shops:Array.isArray(d.shops)?d.shops.map(apiShopToUI):[],
-          items:Array.isArray(d.items)?d.items.map(apiItemToUI):[],
-          tx:Array.isArray(d.transactions)?d.transactions.map(apiTxToUI):[]
-        });
-      } catch(e){ reject(e); } finally { cleanup(); }
-    };
-    script.onerror=function(){ if(done)return; done=true; cleanup(); reject(new Error("Sheet load failed")); };
-    script.src=GS_URL+"?action=getAppData&callback="+cb+"&_="+Date.now();
-    document.head.appendChild(script);
-    setTimeout(function(){ if(done)return; done=true; cleanup(); reject(new Error("Sheet timeout")); },15000);
-  });
-}
-
 
 const fmtMoney = n => {
   const rupeeSVG = `<span class="rupee-icon">₹</span>`;
